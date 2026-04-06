@@ -82,6 +82,7 @@ python generator/log_generator.py
 python -m core.monitor
 '''
 monitor
+
 🔄 How It Works
 Log generator simulates real system logs
 Core analyzer processes logs in real time
