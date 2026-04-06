@@ -1,0 +1,13 @@
+@echo off
+
+echo Compiling C++...
+g++ -std=c++11 metrics_cpp\metrics.cpp -o metrics_cpp\metrics.exe
+
+echo Starting Webhook Server...
+start cmd /k "cd webhook_server && node server.js"
+
+echo Starting Log Generator...
+start cmd /k "cd generator && python log_generator.py"
+
+echo Starting Monitoring System...
+python -m core.monitor

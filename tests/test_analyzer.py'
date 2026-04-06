@@ -1,0 +1,10 @@
+from core.analyzer import SignalAnalyzer
+
+def test_adaptive():
+    config = {"adaptive_window": 3}
+    a = SignalAnalyzer(config)
+
+    a.analyze_metrics({"cpu": 10, "memory": 10, "latency": 10})
+    alerts = a.analyze_metrics({"cpu": 90, "memory": 10, "latency": 10})
+
+    assert len(alerts) >= 1
