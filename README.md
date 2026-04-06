@@ -62,5 +62,32 @@ Log Generator → Core Analyzer → Metric Engine (C++) → Alert System (Webhoo
 ## ▶️ How to Run
 
 ### 1. Install dependencies
-```bash
+'''bash
 pip install -r requirements.txt
+'''
+### 2. Compile C++ module
+'''bash
+g++ metrics_cpp/metrics.cpp -o metrics
+'''
+### 3. Start webhook server
+'''bash
+node webhook_server/server.js
+'''
+### 4. Start log generator
+'''bash
+python generator/log_generator.py
+'''
+### 5. Run Monitoring System
+'''bash
+python -m core.monitor
+'''
+monitor
+🔄 How It Works
+Log generator simulates real system logs
+Core analyzer processes logs in real time
+Metrics engine evaluates anomalies
+Alerts are triggered based on severity
+Webhook server receives and displays alerts
+Example Output
+🚨 ALERT: CPU anomaly
+🚨 ALERT: Memory anomaly
