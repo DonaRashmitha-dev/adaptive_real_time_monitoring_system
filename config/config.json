@@ -1,5 +1,1 @@
-{
-  "adaptive_window": 5,
-  "alert_cooldown": 5,
-  "webhook_url": "http://localhost:3000/alert"
-}
+{"adaptive_window":5,"alert_cooldown":5,"webhook_url":"http://webhook:3000/alert"}

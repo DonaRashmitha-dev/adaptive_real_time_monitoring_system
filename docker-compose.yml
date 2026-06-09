@@ -1,0 +1,69 @@
+﻿services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  webhook:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+    ports:
+      - "3000:3000"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  metrics:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpp
+    volumes:
+      - metrics_bin:/app/metrics_cpp
+    restart: unless-stopped
+
+  monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    depends_on:
+      webhook:
+        condition: service_healthy
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - logs:/app/logs
+      - metrics_bin:/app/metrics_cpp
+    restart: unless-stopped
+
+  log-generator:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    depends_on:
+      - monitor
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - logs:/app/logs
+    command: ["python", "generator/log_generator.py"]
+    restart: unless-stopped
+
+volumes:
+  logs:
+  metrics_bin:

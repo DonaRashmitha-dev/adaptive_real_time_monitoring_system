@@ -1,5 +1,10 @@
-{
+﻿{
+  "name": "monitoring-webhook",
+  "version": "1.0.0",
+  "main": "webhook_server/server.js",
+  "scripts": { "start": "node webhook_server/server.js" },
   "dependencies": {
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "redis": "^4.7.0"
   }
 }

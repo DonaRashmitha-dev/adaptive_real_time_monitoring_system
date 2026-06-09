@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Adaptive Monitoring System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:    #070b14;
+      --bg-surface: #0d1220;
+      --bg-card:    #111827;
+      --bg-card-hov:#141e30;
+      --border:     #1e293b;
+      --border-lit: #253348;
+
+      --blue:   #3b82f6;
+      --blue-d: #1d4ed8;
+      --blue-g: rgba(59,130,246,0.12);
+
+      --green:  #10b981;
+      --green-d:#065f46;
+      --green-g:rgba(16,185,129,0.12);
+
+      --amber:  #f59e0b;
+      --amber-d:#92400e;
+      --amber-g:rgba(245,158,11,0.12);
+
+      --red:    #ef4444;
+      --red-g:  rgba(239,68,68,0.12);
+      --orange: #f97316;
+
+      --text-1: #f1f5f9;
+      --text-2: #94a3b8;
+      --text-3: #475569;
+
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Inter', sans-serif;
+
+      --radius: 8px;
+      --radius-sm: 5px;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg-base);
+      color: var(--text-1);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: var(--border-lit); border-radius: 3px; }
+
+    /* ── Layout ── */
+    .app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 56px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--blue) 0%, #6366f1 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+
+    .header-title {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--text-1);
+    }
+
+    .header-subtitle {
+      font-size: 11px;
+      color: var(--text-3);
+      font-family: var(--mono);
+      letter-spacing: 0.03em;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .clock {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-2);
+      letter-spacing: 0.06em;
+    }
+
+    .redis-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 11px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-2);
+      letter-spacing: 0.04em;
+      transition: border-color 0.3s;
+    }
+
+    .redis-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--text-3);
+      transition: background 0.4s;
+      flex-shrink: 0;
+    }
+
+    .redis-dot.ok   { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .redis-dot.fail { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+
+    /* ── Main ── */
+    main {
+      flex: 1;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ── Section label ── */
+    .section-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      margin-bottom: 10px;
+    }
+
+    /* ── Stat cards ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+    }
+
+    .stat-card.cpu::before    { background: linear-gradient(90deg, var(--blue), transparent); }
+    .stat-card.memory::before { background: linear-gradient(90deg, var(--green), transparent); }
+    .stat-card.latency::before{ background: linear-gradient(90deg, var(--amber), transparent); }
+
+    .stat-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .stat-card-name {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .stat-card.cpu    .stat-card-name { color: var(--blue); }
+    .stat-card.memory .stat-card-name { color: var(--green); }
+    .stat-card.latency .stat-card-name { color: var(--amber); }
+
+    .stat-pulse-ring {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-family: var(--mono);
+      font-weight: 700;
+      transition: border-color 0.5s, color 0.5s;
+    }
+
+    .stat-pulse-ring.ok       { border-color: var(--green); color: var(--green); }
+    .stat-pulse-ring.warning  { border-color: var(--amber); color: var(--amber); }
+    .stat-pulse-ring.critical { border-color: var(--red);   color: var(--red);   animation: pulse-ring 1.2s ease-in-out infinite; }
+
+    @keyframes pulse-ring {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+      50%       { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
+    }
+
+    .stat-value {
+      font-family: var(--mono);
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.03em;
+      color: var(--text-1);
+    }
+
+    .stat-value .unit {
+      font-size: 16px;
+      font-weight: 400;
+      color: var(--text-3);
+      margin-left: 3px;
+    }
+
+    .stat-threshold-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .stat-threshold-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-3);
+      letter-spacing: 0.05em;
+    }
+
+    .stat-threshold-val {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-2);
+    }
+
+    .stat-bar-wrap {
+      margin-top: 10px;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .stat-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.6s ease;
+    }
+
+    .stat-card.cpu    .stat-bar-fill { background: var(--blue); }
+    .stat-card.memory .stat-bar-fill { background: var(--green); }
+    .stat-card.latency .stat-bar-fill { background: var(--amber); }
+
+    /* ── Connecting state ── */
+    .connecting-msg {
+      text-align: center;
+      padding: 48px 24px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text-3);
+      letter-spacing: 0.06em;
+    }
+
+    .connecting-msg .dot-anim { display: inline-block; animation: dots 1.4s infinite; }
+
+    @keyframes dots {
+      0%, 20%  { content: '.'; }
+      40%      { content: '..'; }
+      60%, 80% { content: '...'; }
+    }
+
+    /* ── Chart card ── */
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+    }
+
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .chart-legend {
+      display: flex;
+      gap: 16px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-2);
+    }
+
+    .legend-swatch {
+      width: 20px;
+      height: 2px;
+      border-radius: 1px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 240px;
+    }
+
+    .refresh-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-3);
+      letter-spacing: 0.05em;
+    }
+
+    .refresh-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    /* ── Alerts section ── */
+    .alerts-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .alerts-count {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-3);
+    }
+
+    .alerts-scroll {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 520px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .alert-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left-width: 3px;
+      border-radius: var(--radius-sm);
+      padding: 11px 14px;
+      display: grid;
+      grid-template-columns: 130px auto 1fr auto;
+      align-items: center;
+      gap: 12px;
+      transition: background 0.15s;
+    }
+
+    .alert-card:hover { background: var(--bg-card-hov); }
+
+    .alert-card.CRITICAL { border-left-color: var(--red);    }
+    .alert-card.WARNING  { border-left-color: var(--orange); }
+    .alert-card.INFO     { border-left-color: var(--green);  }
+
+    .alert-ts {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-3);
+      white-space: nowrap;
+      letter-spacing: 0.03em;
+    }
+
+    .alert-type-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .badge-cpu     { background: var(--blue-g);  color: var(--blue);  border: 1px solid rgba(59,130,246,0.25);  }
+    .badge-memory  { background: var(--green-g); color: var(--green); border: 1px solid rgba(16,185,129,0.25); }
+    .badge-latency { background: var(--amber-g); color: var(--amber); border: 1px solid rgba(245,158,11,0.25); }
+    .badge-log     { background: rgba(99,102,241,0.12); color: #818cf8; border: 1px solid rgba(99,102,241,0.25); }
+
+    .alert-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-1);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .alert-vals {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-2);
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .alert-vals .v { font-weight: 600; }
+    .CRITICAL .alert-vals .v { color: var(--red); }
+    .WARNING  .alert-vals .v { color: var(--orange); }
+    .INFO     .alert-vals .v { color: var(--green); }
+
+    .empty-alerts {
+      text-align: center;
+      padding: 48px 24px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-3);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      letter-spacing: 0.06em;
+    }
+
+    .error-banner {
+      background: var(--red-g);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #fca5a5;
+      display: none;
+      letter-spacing: 0.03em;
+    }
+
+    .error-banner.visible { display: block; }
+
+    @media (max-width: 900px) {
+      .stat-grid { grid-template-columns: 1fr; }
+      .alert-card { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
+      .alert-name { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="header-left">
+      <div class="logo-mark">AMS</div>
+      <div>
+        <div class="header-title">Adaptive Monitoring System</div>
+        <div class="header-subtitle">anomaly detection · real-time</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="redis-badge">
+        <div class="redis-dot" id="redisDot"></div>
+        <span id="redisLabel">Redis</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Main ── -->
+  <main>
+
+    <div id="errorBanner" class="error-banner"></div>
+
+    <!-- Stat cards -->
+    <section>
+      <div class="section-label">System Metrics</div>
+      <div class="stat-grid">
+
+        <div class="stat-card cpu">
+          <div class="stat-card-header">
+            <span class="stat-card-name">CPU</span>
+            <div class="stat-pulse-ring" id="cpuRing">—</div>
+          </div>
+          <div class="stat-value" id="cpuVal"><span class="connecting-msg" style="font-size:13px;padding:0">—</span><span class="unit">%</span></div>
+          <div class="stat-bar-wrap"><div class="stat-bar-fill" id="cpuBar" style="width:0%"></div></div>
+          <div class="stat-threshold-row">
+            <span class="stat-threshold-label">ADAPTIVE THRESHOLD</span>
+            <span class="stat-threshold-val" id="cpuThresh">—</span>
+          </div>
+        </div>
+
+        <div class="stat-card memory">
+          <div class="stat-card-header">
+            <span class="stat-card-name">Memory</span>
+            <div class="stat-pulse-ring" id="memRing">—</div>
+          </div>
+          <div class="stat-value" id="memVal"><span style="font-size:13px;color:var(--text-3)">—</span><span class="unit">%</span></div>
+          <div class="stat-bar-wrap"><div class="stat-bar-fill" id="memBar" style="width:0%"></div></div>
+          <div class="stat-threshold-row">
+            <span class="stat-threshold-label">ADAPTIVE THRESHOLD</span>
+            <span class="stat-threshold-val" id="memThresh">—</span>
+          </div>
+        </div>
+
+        <div class="stat-card latency">
+          <div class="stat-card-header">
+            <span class="stat-card-name">Latency</span>
+            <div class="stat-pulse-ring" id="latRing">—</div>
+          </div>
+          <div class="stat-value" id="latVal"><span style="font-size:13px;color:var(--text-3)">—</span><span class="unit">ms</span></div>
+          <div class="stat-bar-wrap"><div class="stat-bar-fill" id="latBar" style="width:0%"></div></div>
+          <div class="stat-threshold-row">
+            <span class="stat-threshold-label">ADAPTIVE THRESHOLD</span>
+            <span class="stat-threshold-val" id="latThresh">—</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Chart -->
+    <section>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="section-label" style="margin-bottom:2px">Live Telemetry</div>
+            <div style="font-size:12px;color:var(--text-3);font-family:var(--mono)">Last 50 snapshots</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:20px">
+            <div class="chart-legend">
+              <div class="legend-item"><div class="legend-swatch" style="background:var(--blue)"></div>CPU %</div>
+              <div class="legend-item"><div class="legend-swatch" style="background:var(--green)"></div>Memory %</div>
+              <div class="legend-item"><div class="legend-swatch" style="background:var(--amber)"></div>Latency ms</div>
+            </div>
+            <div class="refresh-indicator">
+              <div class="refresh-dot"></div>
+              LIVE · 2s
+            </div>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="metricsChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Alerts -->
+    <section>
+      <div class="alerts-header">
+        <div class="section-label" style="margin-bottom:0">Alert Log</div>
+        <div class="alerts-count" id="alertsCount">—</div>
+      </div>
+      <div class="alerts-scroll" id="alertsList">
+        <div class="empty-alerts">Connecting to server<span class="dot-anim">...</span></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  // ── Clock ──
+  const clockEl = document.getElementById('clock');
+  function updateClock() {
+    clockEl.textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ── Chart setup ──
+  const ctx = document.getElementById('metricsChart').getContext('2d');
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'CPU %',
+          data: [],
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59,130,246,0.06)',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.35,
+          fill: true,
+        },
+        {
+          label: 'Memory %',
+          data: [],
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16,185,129,0.06)',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.35,
+          fill: true,
+        },
+        {
+          label: 'Latency ms',
+          data: [],
+          borderColor: '#f59e0b',
+          backgroundColor: 'rgba(245,158,11,0.06)',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.35,
+          fill: true,
+          yAxisID: 'yLatency',
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      animation: { duration: 400 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#111827',
+          borderColor: '#1e293b',
+          borderWidth: 1,
+          titleColor: '#94a3b8',
+          bodyColor: '#f1f5f9',
+          titleFont: { family: 'JetBrains Mono', size: 10 },
+          bodyFont:  { family: 'JetBrains Mono', size: 12 },
+          padding: 10,
+          callbacks: {
+            title: items => items[0]?.label || '',
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(30,41,59,0.6)', drawBorder: false },
+          ticks: {
+            color: '#475569',
+            font: { family: 'JetBrains Mono', size: 9 },
+            maxTicksLimit: 8,
+            maxRotation: 0,
+          },
+        },
+        y: {
+          min: 0, max: 100,
+          grid: { color: 'rgba(30,41,59,0.6)', drawBorder: false },
+          ticks: {
+            color: '#475569',
+            font: { family: 'JetBrains Mono', size: 9 },
+            callback: v => v + '%',
+          },
+        },
+        yLatency: {
+          position: 'right',
+          min: 0, max: 500,
+          grid: { display: false },
+          ticks: {
+            color: '#6b5a2f',
+            font: { family: 'JetBrains Mono', size: 9 },
+            callback: v => v + 'ms',
+          },
+        }
+      }
+    }
+  });
+
+  // ── State ──
+  const BASE = 'http://localhost:3000';
+  let lastAlerts = [];
+  let latestMetrics = null;
+  let hasConnected = false;
+
+  const errorBanner = document.getElementById('errorBanner');
+
+  function showError(msg) {
+    errorBanner.textContent = '⚠  ' + msg;
+    errorBanner.classList.add('visible');
+  }
+  function clearError() {
+    errorBanner.classList.remove('visible');
+  }
+
+  // ── Fetch helpers ──
+  async function apiFetch(path) {
+    const res = await fetch(BASE + path, {
+      method: 'GET',
+      mode: 'cors',
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  // ── Health ──
+  async function pollHealth() {
+    try {
+      const h = await apiFetch('/health');
+      const ok = h.redis === 'ok' || h.redis === true || h.redis === 'connected';
+      document.getElementById('redisDot').className = 'redis-dot ' + (ok ? 'ok' : 'fail');
+      document.getElementById('redisLabel').textContent = 'Redis · ' + (ok ? 'OK' : 'ERR');
+    } catch {
+      document.getElementById('redisDot').className = 'redis-dot fail';
+      document.getElementById('redisLabel').textContent = 'Redis · —';
+    }
+  }
+
+  // ── Metrics ──
+  function formatTs(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch { return iso || ''; }
+  }
+
+  function severityClass(value, threshold) {
+    const ratio = value / threshold;
+    if (ratio >= 1)    return 'critical';
+    if (ratio >= 0.85) return 'warning';
+    return 'ok';
+  }
+
+  function severityLabel(cls) {
+    return { ok: 'OK', warning: '!', critical: '!!' }[cls] || '—';
+  }
+
+  function updateStatCard(idVal, idBar, idRing, idThresh, value, threshold, maxVal) {
+    const vEl = document.getElementById(idVal);
+    const bEl = document.getElementById(idBar);
+    const rEl = document.getElementById(idRing);
+    const tEl = document.getElementById(idThresh);
+
+    const numVal  = typeof value === 'number'     ? value     : parseFloat(value);
+    const numThresh = typeof threshold === 'number' ? threshold : parseFloat(threshold);
+
+    vEl.innerHTML = isNaN(numVal)
+      ? `<span style="font-size:20px;color:var(--text-3)">—</span>`
+      : `${numVal.toFixed(1)}<span class="unit">${idVal === 'latVal' ? 'ms' : '%'}</span>`;
+
+    if (!isNaN(numVal) && maxVal) {
+      bEl.style.width = Math.min(100, (numVal / maxVal) * 100) + '%';
+    }
+
+    if (!isNaN(numVal) && !isNaN(numThresh)) {
+      const cls = severityClass(numVal, numThresh);
+      rEl.className = 'stat-pulse-ring ' + cls;
+      rEl.textContent = severityLabel(cls);
+      tEl.textContent = numThresh.toFixed(1) + (idThresh === 'latThresh' ? ' ms' : '%');
+    }
+  }
+
+  async function pollMetrics() {
+    try {
+      const data = await apiFetch('/metrics');
+      if (!Array.isArray(data) || data.length === 0) return;
+
+      latestMetrics = data[data.length - 1];
+
+      // Stat cards (latest values; thresholds from alerts if available, else estimated)
+      const latestAlert = lastAlerts.find(a => a.type === 'cpu')    || {};
+      const latestMemAl = lastAlerts.find(a => a.type === 'memory') || {};
+      const latestLatAl = lastAlerts.find(a => a.type === 'latency')|| {};
+
+      updateStatCard('cpuVal', 'cpuBar', 'cpuRing', 'cpuThresh',
+        latestMetrics.cpu, latestAlert.threshold_at_time ?? 80, 100);
+      updateStatCard('memVal', 'memBar', 'memRing', 'memThresh',
+        latestMetrics.memory, latestMemAl.threshold_at_time ?? 80, 100);
+      updateStatCard('latVal', 'latBar', 'latRing', 'latThresh',
+        latestMetrics.latency, latestLatAl.threshold_at_time ?? 250, 500);
+
+      // Chart
+      const labels = data.map(m => formatTs(m.timestamp));
+      chart.data.labels                = labels;
+      chart.data.datasets[0].data     = data.map(m => m.cpu);
+      chart.data.datasets[1].data     = data.map(m => m.memory);
+      chart.data.datasets[2].data     = data.map(m => m.latency);
+      chart.update('none');
+
+      hasConnected = true;
+      clearError();
+    } catch (err) {
+      if (!hasConnected) showError('Cannot reach server at ' + BASE + ' — retrying…');
+    }
+  }
+
+  // ── Alerts ──
+  const alertsList   = document.getElementById('alertsList');
+  const alertsCount  = document.getElementById('alertsCount');
+
+  function severityColor(s) {
+    return { CRITICAL: '#ef4444', WARNING: '#f97316', INFO: '#10b981' }[s] || '#475569';
+  }
+
+  function typeBadgeClass(type) {
+    return { cpu: 'badge-cpu', memory: 'badge-memory', latency: 'badge-latency', log: 'badge-log' }[type] || 'badge-log';
+  }
+
+  function renderAlerts(alerts) {
+    if (!alerts || alerts.length === 0) {
+      alertsList.innerHTML = '<div class="empty-alerts">No alerts recorded yet.</div>';
+      alertsCount.textContent = '0 alerts';
+      return;
+    }
+
+    const sorted = [...alerts].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    alertsCount.textContent = sorted.length + ' alert' + (sorted.length !== 1 ? 's' : '');
+
+    alertsList.innerHTML = sorted.map(a => {
+      const val    = typeof a.value === 'number' ? a.value.toFixed(2) : (a.value ?? '—');
+      const thresh = typeof a.threshold_at_time === 'number' ? a.threshold_at_time.toFixed(2) : (a.threshold_at_time ?? '—');
+      const unit   = a.type === 'latency' ? 'ms' : (a.type === 'cpu' || a.type === 'memory' ? '%' : '');
+
+      return `<div class="alert-card ${a.severity || ''}">
+        <div class="alert-ts">${formatTs(a.timestamp)}</div>
+        <div><span class="alert-type-badge ${typeBadgeClass(a.type)}">${(a.type || 'log').toUpperCase()}</span></div>
+        <div class="alert-name">${escHtml(a.alert || 'Alert')}</div>
+        <div class="alert-vals"><span class="v">${val}${unit}</span> / ${thresh}${unit}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  async function pollAlerts() {
+    try {
+      const data = await apiFetch('/alerts');
+      if (Array.isArray(data)) {
+        lastAlerts = data;
+        renderAlerts(data);
+      }
+    } catch (err) {
+      if (!hasConnected) {
+        alertsList.innerHTML = '<div class="empty-alerts">Connecting to server<span class="dot-anim">...</span></div>';
+      }
+    }
+  }
+
+  // ── Bootstrap ──
+  async function init() {
+    await Promise.allSettled([pollHealth(), pollMetrics(), pollAlerts()]);
+  }
+
+  init();
+
+  setInterval(() => { pollMetrics(); pollAlerts(); }, 2000);
+  setInterval(pollHealth, 5000);
+</script>
+</body>
+</html>
