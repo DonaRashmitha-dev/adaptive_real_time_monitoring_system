@@ -117,7 +117,7 @@ monitoring_system_clean/
 **Prerequisites:** Docker Desktop installed and running.
 
 ```bash
-git clone https://github.com/your-username/monitoring_system_clean.git
+git clone https://github.com/DonaRashmitha-dev/adaptive_real_time_monitoring_system.git
 cd monitoring_system_clean
 docker compose up --build
 ```
@@ -175,3 +175,18 @@ Demonstrates polyglot architecture. In real systems, metric collection agents ar
 
 **Why no fixed thresholds?**
 Random metric data has no meaningful static threshold. EWMA adapts to the baseline of whatever signal it's watching — the same algorithm used in TCP congestion control and financial time series.
+## Why I Built This
+
+This system is Layer 1 of a three-part observability stack built from scratch.
+
+**Layer 1 — This repo:** Adaptive anomaly detection. Detects *when* something breaks.
+
+**Layer 2 — Fault Injection Platform:** Deliberately crashes processes, starves memory,
+spikes CPU. Measures recovery time. Answers: *how bad does it get?*
+
+**Layer 3 — LOG.INTEL:** AI-powered log intelligence. Ingests output from both systems,
+runs RAG over log history, answers questions about system health in plain English.
+Answers: *why did it break?*
+
+Each layer was designed to feed the next. The stack reflects how production observability
+actually works — detect, stress-test, then understand.
